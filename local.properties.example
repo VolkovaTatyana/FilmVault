@@ -5,7 +5,7 @@
 
 # TMDB API Configuration
 # Get your API key from: https://www.themoviedb.org/settings/api
-API_KEY="your_tmdb_api_key_here"
+API_KEY=your_tmdb_api_key_here
 
 # Optional: Bearer Token (more secure alternative)
-# BEARER_TOKEN="your_bearer_token_here"
+# BEARER_TOKEN=your_bearer_token_here
