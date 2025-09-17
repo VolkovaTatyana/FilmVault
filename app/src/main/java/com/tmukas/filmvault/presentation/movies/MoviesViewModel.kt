@@ -6,12 +6,15 @@ import com.tmukas.filmvault.domain.model.Movie
 import com.tmukas.filmvault.domain.usecase.ObserveMoviesUseCase
 import com.tmukas.filmvault.domain.usecase.RequestMoviesPageUseCase
 import com.tmukas.filmvault.domain.usecase.ToggleFavoriteUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class MoviesViewModel(
+@HiltViewModel
+class MoviesViewModel @Inject constructor(
     private val observeMoviesUseCase: ObserveMoviesUseCase,
     private val requestMoviesPage: RequestMoviesPageUseCase,
     private val toggleFavorite: ToggleFavoriteUseCase
@@ -22,6 +25,8 @@ class MoviesViewModel(
 
     init {
         observeMovies()
+        // Trigger first page load so DB gets populated for inspection
+        loadNextPage(page = 1)
     }
 
     private fun observeMovies() {
