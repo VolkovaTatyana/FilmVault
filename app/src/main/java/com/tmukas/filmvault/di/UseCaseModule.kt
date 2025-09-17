@@ -5,6 +5,7 @@ import com.tmukas.filmvault.domain.usecase.ObserveFavoritesUseCase
 import com.tmukas.filmvault.domain.usecase.ObserveMoviesUseCase
 import com.tmukas.filmvault.domain.usecase.RequestMoviesPageUseCase
 import com.tmukas.filmvault.domain.usecase.ToggleFavoriteUseCase
+import com.tmukas.filmvault.domain.usecase.RefreshMoviesUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -33,4 +34,9 @@ object UseCaseModule {
     @Singleton
     fun provideToggleFavoriteUseCase(repository: MovieRepository) =
         ToggleFavoriteUseCase(repository)
+
+    @Provides
+    @Singleton
+    fun provideRefreshMoviesUseCase(repository: MovieRepository) =
+        RefreshMoviesUseCase(repository)
 }

@@ -3,7 +3,7 @@ package com.tmukas.filmvault.data.paging
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import com.tmukas.filmvault.BuildConfig
-import com.tmukas.filmvault.data.mapper.toDomain
+import com.tmukas.filmvault.data.mapper.toDomainFromDto
 import com.tmukas.filmvault.data.remote.api.MovieApiService
 import com.tmukas.filmvault.domain.model.Movie
 import retrofit2.HttpException
@@ -23,7 +23,7 @@ class MoviesPagingSource @Inject constructor(
                 page = page
             )
 
-            val movies = response.results?.toDomain().orEmpty()
+            val movies = response.results?.toDomainFromDto().orEmpty()
             val totalPages = response.totalPages ?: 1
 
             LoadResult.Page(

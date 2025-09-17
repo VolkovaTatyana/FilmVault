@@ -23,6 +23,7 @@ mockk = "1.14.5"
 junitBom = "5.13.4"
 kotlinxCoroutinesTest = "1.10.2"
 paging = "3.3.6"
+coil = "2.7.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -72,6 +73,9 @@ navigation-compose = { group = "androidx.navigation", name = "navigation-compose
 # Paging
 paging-runtime = { group = "androidx.paging", name = "paging-runtime", version.ref = "paging" }
 paging-compose = { group = "androidx.paging", name = "paging-compose", version.ref = "paging" }
+
+# Coil (images)
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 
 # Testing
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }

@@ -68,6 +68,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.kotlinx.collections.immutable)
 
     // ViewModel & Lifecycle
     implementation(libs.lifecycle.viewmodel.ktx)
@@ -104,6 +105,9 @@ dependencies {
     // Paging 3
     implementation(libs.paging.runtime)
     implementation(libs.paging.compose)
+
+    // Images
+    implementation(libs.coil.compose)
 
     // Testing
     testImplementation(libs.junit)

@@ -3,7 +3,8 @@ package com.tmukas.filmvault.data.repository
 import com.tmukas.filmvault.BuildConfig
 import com.tmukas.filmvault.data.local.MovieDao
 import com.tmukas.filmvault.data.mapper.toDomain
-import com.tmukas.filmvault.data.mapper.toEntities
+import com.tmukas.filmvault.data.mapper.toDomainFromDto
+import com.tmukas.filmvault.data.mapper.toEntity
 import com.tmukas.filmvault.data.remote.api.MovieApiService
 import com.tmukas.filmvault.domain.model.Movie
 import com.tmukas.filmvault.domain.repository.MovieRepository
@@ -30,7 +31,9 @@ class MovieRepositoryImpl @Inject constructor(
             coroutineContext.ensureActive()
             val favoriteIds = movieDao.getFavoriteIds().toSet()
             val response = apiService.discoverMovies(apiKey = BuildConfig.API_KEY, page = page)
-            val entities = response.results.orEmpty().toEntities(favoriteIds, pageIndex = page)
+            val entities = response.results.orEmpty()
+                .toDomainFromDto()
+                .toEntity(favoriteIds, pageIndex = page)
             if (entities.isNotEmpty()) {
                 movieDao.upsertAll(entities)
             }
@@ -48,7 +51,9 @@ class MovieRepositoryImpl @Inject constructor(
             val favoriteIds = movieDao.getFavoriteIds().toSet()
             movieDao.clearAll()
             val response = apiService.discoverMovies(apiKey = BuildConfig.API_KEY, page = 1)
-            val entities = response.results.orEmpty().toEntities(favoriteIds, pageIndex = 1)
+            val entities = response.results.orEmpty()
+                .toDomainFromDto()
+                .toEntity(favoriteIds, pageIndex = 1)
             if (entities.isNotEmpty()) movieDao.upsertAll(entities)
             Result.success(Unit)
         } catch (e: CancellationException) {
