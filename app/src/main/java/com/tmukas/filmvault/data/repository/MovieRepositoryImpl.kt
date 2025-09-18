@@ -51,11 +51,12 @@ class MovieRepositoryImpl @Inject constructor(
         return try {
             coroutineContext.ensureActive()
             val favoriteIds = movieDao.getFavoriteIds().toSet()
-            movieDao.clearAll()
             val response = apiService.discoverMovies(apiKey = BuildConfig.API_KEY, page = 1)
             val entities = response.results.orEmpty()
                 .toDomainFromDto()
                 .toEntity(favoriteIds, pageIndex = 1)
+            val keepIds = entities.map { it.id } + favoriteIds
+            movieDao.deleteAllExcept(keepIds)
             if (entities.isNotEmpty()) movieDao.upsertAll(entities)
             Result.success(Unit)
         } catch (e: CancellationException) {

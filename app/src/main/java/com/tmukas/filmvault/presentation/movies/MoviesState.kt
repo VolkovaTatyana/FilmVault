@@ -10,7 +10,8 @@ sealed class MoviesState {
     data class Content(
         val movies: ImmutableList<Pair<String, ImmutableList<Movie>>> = persistentListOf(),
         val nextPageToLoad: Int = 1,
-        val canLoadMore: Boolean = true
+        val canLoadMore: Boolean = true,
+        val errorMessage: String? = null // For showing errors while displaying cached data
     ) : MoviesState()
 
     data class Refreshing(

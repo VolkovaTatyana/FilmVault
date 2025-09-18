@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,9 +35,12 @@ class MoviesViewModel @Inject constructor(
     // Store the last pagination result to use in observeMovies
     private var lastPageResult: PageResult? = null
 
+    // Block automatic loading after network errors
+    private var isLoadingBlocked: Boolean = false
+
     init {
         observeMovies()
-        // Trigger first page load so DB gets populated for inspection
+        // Trigger first page load
         loadNextPage()
     }
 
@@ -44,20 +48,46 @@ class MoviesViewModel @Inject constructor(
         viewModelScope.launch {
             observeMoviesUseCase().collect { movies ->
                 val formattedMovies = movies.toUiMovieList()
+
                 _uiState.value = when (val currentState = _uiState.value) {
-                    is MoviesState.Loading -> MoviesState.Content(
+                    is MoviesState.Loading -> {
+                        val newState = MoviesState.Content(
+                            movies = formattedMovies,
+                            nextPageToLoad = if (formattedMovies.isEmpty()) 1 else 2,
+                            canLoadMore = formattedMovies.isNotEmpty() && (lastPageResult?.hasMorePages
+                                ?: true)
+                        )
+                        newState
+                    }
+                    is MoviesState.Content -> currentState.copy(movies = formattedMovies)
+                    is MoviesState.Refreshing -> MoviesState.Content(
                         movies = formattedMovies,
                         nextPageToLoad = 2,
                         canLoadMore = lastPageResult?.hasMorePages ?: true
                     )
-                    is MoviesState.Content -> currentState.copy(movies = formattedMovies)
-                    is MoviesState.Refreshing -> currentState.copy(movies = formattedMovies)
-                    is MoviesState.LoadingMore -> MoviesState.Content(
-                        movies = formattedMovies,
-                        nextPageToLoad = currentState.nextPageToLoad + 1,
-                        canLoadMore = lastPageResult?.hasMorePages ?: true
-                    )
-                    is MoviesState.Error -> currentState.copy(movies = formattedMovies)
+                    is MoviesState.LoadingMore -> {
+                        // After successful loading, nextPageToLoad should be the page we just loaded + 1
+                        // currentState.nextPageToLoad is the page we were loading
+                        MoviesState.Content(
+                            movies = formattedMovies,
+                            nextPageToLoad = currentState.nextPageToLoad + 1,
+                            canLoadMore = lastPageResult?.hasMorePages ?: true
+                        )
+                    }
+                    is MoviesState.Error -> {
+                        if (formattedMovies.isNotEmpty()) {
+                            // We have cached data, show it as Content
+                            // Don't transfer errorMessage to prevent infinite toast loop
+                            MoviesState.Content(
+                                movies = formattedMovies,
+                                nextPageToLoad = currentState.nextPageToLoad,
+                                canLoadMore = currentState.canLoadMore
+                            )
+                        } else {
+                            // No cached data available, keep error state but update movies
+                            currentState.copy(movies = formattedMovies)
+                        }
+                    }
                 }
             }
         }
@@ -65,48 +95,64 @@ class MoviesViewModel @Inject constructor(
 
     fun loadNextPage() {
         viewModelScope.launch {
-            val currentState = _uiState.value
-            val (canLoadMore, nextPageToLoad, movies) = when (currentState) {
-                is MoviesState.Loading -> Triple(true, 1, persistentListOf())
-                is MoviesState.Content -> Triple(
-                    currentState.canLoadMore,
-                    currentState.nextPageToLoad,
-                    currentState.movies
-                )
+            if (isLoadingBlocked) return@launch
 
+            val currentState = _uiState.value
+            val (movies, nextPageToLoad, canLoadMore) = when (currentState) {
+                is MoviesState.Loading -> Triple(persistentListOf(), 1, true)
                 is MoviesState.Refreshing -> return@launch
                 is MoviesState.LoadingMore -> return@launch
-                is MoviesState.Error -> Triple(
-                    currentState.canLoadMore,
-                    currentState.nextPageToLoad,
-                    currentState.movies
-                )
+                else -> extractStateData(currentState)
             }
 
             if (!canLoadMore) return@launch
 
-            val isFirstPage = nextPageToLoad == 1
-            _uiState.value = if (isFirstPage) {
+            // Prevent loading first page if we already have data
+            if (nextPageToLoad == 1 && movies.isNotEmpty()) {
+                // Update state to reflect correct next page
+                if (currentState is MoviesState.Content) {
+                    _uiState.value = currentState.copy(nextPageToLoad = 2)
+                }
+                return@launch
+            }
+
+            _uiState.value = if (nextPageToLoad == 1) {
                 MoviesState.Loading
             } else {
                 MoviesState.LoadingMore(
                     movies = movies,
                     nextPageToLoad = nextPageToLoad,
-                    canLoadMore = canLoadMore
+                    canLoadMore = true
                 )
             }
 
             try {
                 val result = requestMoviesPage(nextPageToLoad).getOrThrow()
                 lastPageResult = result
-                // State will be updated in observeMovies() with correct canLoadMore
+                isLoadingBlocked = false
+                // State will be updated in observeMovies() when new data arrives from DB
             } catch (e: Exception) {
-                _uiState.value = MoviesState.Error(
-                    message = e.message ?: "Unknown error",
-                    movies = movies,
-                    nextPageToLoad = nextPageToLoad,
-                    canLoadMore = canLoadMore
-                )
+                val errorMessage = getErrorMessage(e)
+                isLoadingBlocked = true
+
+                // For first page, wait for observeMovies to provide cached data
+                if (nextPageToLoad == 1) {
+                    // Set a temporary error state that will be handled by observeMovies
+                    _uiState.value = MoviesState.Content(
+                        movies = persistentListOf(),
+                        nextPageToLoad = nextPageToLoad,
+                        canLoadMore = true,
+                        errorMessage = errorMessage
+                    )
+                } else {
+                    // For pagination, show error with existing data
+                    _uiState.value = MoviesState.Content(
+                        movies = movies,
+                        nextPageToLoad = nextPageToLoad,
+                        canLoadMore = true,
+                        errorMessage = errorMessage
+                    )
+                }
             }
         }
     }
@@ -117,36 +163,11 @@ class MoviesViewModel @Inject constructor(
                 toggleFavorite(movie)
             } catch (e: Exception) {
                 val currentState = _uiState.value
-                val (movies, nextPageToLoad, canLoadMore) = when (currentState) {
-                    is MoviesState.Content -> Triple(
-                        currentState.movies,
-                        currentState.nextPageToLoad,
-                        currentState.canLoadMore
-                    )
+                val (movies, nextPageToLoad, canLoadMore) = extractStateData(currentState)
 
-                    is MoviesState.Refreshing -> Triple(
-                        currentState.movies,
-                        currentState.nextPageToLoad,
-                        currentState.canLoadMore
-                    )
-
-                    is MoviesState.LoadingMore -> Triple(
-                        currentState.movies,
-                        currentState.nextPageToLoad,
-                        currentState.canLoadMore
-                    )
-
-                    is MoviesState.Error -> Triple(
-                        currentState.movies,
-                        currentState.nextPageToLoad,
-                        currentState.canLoadMore
-                    )
-
-                    is MoviesState.Loading -> Triple(persistentListOf(), 1, true)
-                }
-
+                val errorMessage = getErrorMessage(e, "Failed to toggle favorite")
                 _uiState.value = MoviesState.Error(
-                    message = e.message ?: "Failed to toggle favorite",
+                    message = errorMessage,
                     movies = movies,
                     nextPageToLoad = nextPageToLoad,
                     canLoadMore = canLoadMore
@@ -160,27 +181,9 @@ class MoviesViewModel @Inject constructor(
             val currentState = _uiState.value
             if (currentState is MoviesState.Refreshing || currentState is MoviesState.Loading) return@launch
 
-            val (movies, nextPageToLoad, canLoadMore) = when (currentState) {
-                is MoviesState.Content -> Triple(
-                    currentState.movies,
-                    currentState.nextPageToLoad,
-                    currentState.canLoadMore
-                )
+            val (movies, nextPageToLoad, canLoadMore) = extractStateData(currentState)
 
-                is MoviesState.LoadingMore -> Triple(
-                    currentState.movies,
-                    currentState.nextPageToLoad,
-                    currentState.canLoadMore
-                )
-
-                is MoviesState.Error -> Triple(
-                    currentState.movies,
-                    currentState.nextPageToLoad,
-                    currentState.canLoadMore
-                )
-                else -> error("Unexpected state: $currentState")
-            }
-
+            // Always show refreshing state first for better UX
             _uiState.value = MoviesState.Refreshing(
                 movies = movies,
                 nextPageToLoad = nextPageToLoad,
@@ -191,43 +194,106 @@ class MoviesViewModel @Inject constructor(
                 refreshMovies().getOrThrow()
                 // Reset pagination info after refresh
                 lastPageResult = null
+                isLoadingBlocked = false // Only unblock on successful refresh
+                // Force transition from Refreshing to Content
+                val currentRefreshingState = _uiState.value as? MoviesState.Refreshing
+                if (currentRefreshingState != null) {
+                    _uiState.value = MoviesState.Content(
+                        movies = currentRefreshingState.movies,
+                        nextPageToLoad = 2,
+                        canLoadMore = true
+                    )
+                }
+            } catch (e: Exception) {
+                val errorMessage = getErrorMessage(e, "Failed to refresh")
+                // Add small delay to show refresh indicator
+                delay(300)
+                // Show cached data with error message
+                // Don't unblock loading if refresh failed due to network error
                 _uiState.value = MoviesState.Content(
                     movies = movies,
-                    nextPageToLoad = 2,
-                    canLoadMore = true // We assume there are more pages after refresh
-                )
-            } catch (e: Exception) {
-                _uiState.value = MoviesState.Error(
-                    message = e.message ?: "Failed to refresh",
-                    movies = movies,
                     nextPageToLoad = nextPageToLoad,
-                    canLoadMore = canLoadMore
+                    canLoadMore = true, // Keep true so user can retry by scrolling
+                    errorMessage = errorMessage
                 )
             }
         }
     }
 
-    private fun List<Movie>.toUiMovieList(): ImmutableList<Pair<String, ImmutableList<Movie>>> {
-        val input = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val output = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH)
+    fun clearError() {
+        val currentState = _uiState.value
+        if (currentState is MoviesState.Content && currentState.errorMessage != null) {
+            _uiState.value = currentState.copy(errorMessage = null)
+            // Don't unblock loading here - only unblock on successful operations
+        }
+    }
 
+    private fun getErrorMessage(e: Exception, defaultMessage: String = "Unknown error"): String {
+        return when (e) {
+            is java.net.UnknownHostException -> "No internet connection"
+            is java.net.SocketTimeoutException -> "Connection timeout. Check your internet connection."
+            is java.io.IOException -> "Network error. Please check your connection."
+            else -> e.message ?: defaultMessage
+        }
+    }
+
+    private fun extractStateData(state: MoviesState): Triple<ImmutableList<Pair<String, ImmutableList<Movie>>>, Int, Boolean> {
+        return when (state) {
+            is MoviesState.Content -> Triple(
+                state.movies,
+                state.nextPageToLoad,
+                state.canLoadMore
+            )
+
+            is MoviesState.Refreshing -> Triple(
+                state.movies,
+                state.nextPageToLoad,
+                state.canLoadMore
+            )
+
+            is MoviesState.LoadingMore -> Triple(
+                state.movies,
+                state.nextPageToLoad,
+                state.canLoadMore
+            )
+
+            is MoviesState.Error -> Triple(
+                state.movies,
+                state.nextPageToLoad,
+                state.canLoadMore
+            )
+
+            is MoviesState.Loading -> Triple(persistentListOf(), 1, true)
+        }
+    }
+
+    private fun List<Movie>.toUiMovieList(): ImmutableList<Pair<String, ImmutableList<Movie>>> {
         // Movies are already sorted by release date DESC from the database query
         val map = LinkedHashMap<String, MutableList<Movie>>()
-        for (m in this) {
-            val label = try {
-                val date = input.parse(m.releaseDate)
-                if (date != null) {
-                    val s = output.format(date)
-                    s.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ENGLISH) else it.toString() }
-                } else {
-                    "Unknown"
-                }
-            } catch (_: Exception) {
-                "Unknown"
-            }
-            map.getOrPut(label) { mutableListOf() }.add(m)
+        for (movie in this) {
+            val monthLabel = formatReleaseDate(movie.releaseDate)
+            map.getOrPut(monthLabel) { mutableListOf() }.add(movie)
         }
 
         return map.entries.map { it.key to it.value.toPersistentList() }.toPersistentList()
+    }
+
+    private fun formatReleaseDate(releaseDate: String): String {
+        val input = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val output = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH)
+
+        return try {
+            val date = input.parse(releaseDate)
+            if (date != null) {
+                val formattedDate = output.format(date)
+                formattedDate.replaceFirstChar {
+                    if (it.isLowerCase()) it.titlecase(Locale.ENGLISH) else it.toString()
+                }
+            } else {
+                "Unknown"
+            }
+        } catch (_: Exception) {
+            "Unknown"
+        }
     }
 }

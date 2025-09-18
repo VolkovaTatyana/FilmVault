@@ -9,8 +9,8 @@ import com.tmukas.filmvault.data.local.Converters
 
 @Database(
     entities = [MovieEntity::class],
-    version = 1,
-    exportSchema = true
+    version = 2,
+    exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class FilmVaultDatabase : RoomDatabase() {

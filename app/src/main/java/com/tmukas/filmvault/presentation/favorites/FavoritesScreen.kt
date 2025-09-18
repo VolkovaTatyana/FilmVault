@@ -3,6 +3,8 @@ package com.tmukas.filmvault.presentation.favorites
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -36,7 +38,13 @@ fun FavoritesScreen(
         }
 
         is FavoritesState.Empty -> {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
                     text = "No favorites yet",
                     color = MaterialTheme.colorScheme.onSurfaceVariant

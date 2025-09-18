@@ -30,4 +30,7 @@ interface MovieDao {
 
     @Query("SELECT id FROM movies WHERE isFavorite = 1")
     suspend fun getFavoriteIds(): List<Int>
+
+    @Query("DELETE FROM movies WHERE isFavorite = 0 AND id NOT IN (:keepIds)")
+    suspend fun deleteAllExcept(keepIds: List<Int>)
 }
