@@ -10,10 +10,10 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface MovieDao {
 
-    @Query("SELECT * FROM movies ORDER BY popularity DESC")
+    @Query("SELECT * FROM movies ORDER BY releaseDate DESC")
     fun observeMovies(): Flow<List<MovieEntity>>
 
-    @Query("SELECT * FROM movies WHERE isFavorite = 1 ORDER BY title ASC")
+    @Query("SELECT * FROM movies WHERE isFavorite = 1 ORDER BY releaseDate DESC")
     fun observeFavorites(): Flow<List<MovieEntity>>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)

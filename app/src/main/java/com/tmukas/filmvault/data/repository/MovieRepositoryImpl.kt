@@ -8,6 +8,7 @@ import com.tmukas.filmvault.data.mapper.toEntity
 import com.tmukas.filmvault.data.remote.api.MovieApiService
 import com.tmukas.filmvault.domain.model.Movie
 import com.tmukas.filmvault.domain.repository.MovieRepository
+import com.tmukas.filmvault.domain.usecase.PageResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
@@ -26,7 +27,7 @@ class MovieRepositoryImpl @Inject constructor(
     override fun observeFavorites(): Flow<List<Movie>> =
         movieDao.observeFavorites().map { it.toDomain() }
 
-    override suspend fun requestNextPage(page: Int): Result<Unit> {
+    override suspend fun requestNextPage(page: Int): Result<PageResult> {
         return try {
             coroutineContext.ensureActive()
             val favoriteIds = movieDao.getFavoriteIds().toSet()
@@ -37,7 +38,8 @@ class MovieRepositoryImpl @Inject constructor(
             if (entities.isNotEmpty()) {
                 movieDao.upsertAll(entities)
             }
-            Result.success(Unit)
+            val hasMorePages = (response.totalPages ?: 0) > page
+            Result.success(PageResult(hasMorePages = hasMorePages))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

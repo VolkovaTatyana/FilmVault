@@ -31,28 +31,56 @@ import com.tmukas.filmvault.presentation.ui.components.MovieCard
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoviesScreen(
+    listState: LazyListState = rememberLazyListState(),
     viewModel: MoviesViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    val listState = rememberLazyListState()
-    val groups = state.movies
     val pullState = rememberPullToRefreshState()
 
     PullToRefreshBox(
-        isRefreshing = state.isRefreshing,
+        isRefreshing = state is MoviesState.Refreshing,
         onRefresh = { viewModel.refresh() },
         state = pullState,
         modifier = Modifier.fillMaxSize()
     ) {
-        when {
-            state.isLoadingInitial && state.movies.isEmpty() -> InitialLoading()
-            state.error != null && state.movies.isEmpty() -> ErrorBox(state.error ?: "Error")
-            else -> MoviesList(
-                groups = groups,
+        val currentState = state
+        when (currentState) {
+            is MoviesState.Loading -> InitialLoading()
+            is MoviesState.Error -> {
+                if (currentState.movies.isEmpty()) {
+                    ErrorBox(currentState.message)
+                } else {
+                    MoviesList(
+                        groups = currentState.movies,
+                        listState = listState,
+                        onToggleFavorite = viewModel::onClickFavorite,
+                        onLoadMore = { viewModel.loadNextPage() },
+                        isLoadingMore = false
+                    )
+                }
+            }
+
+            is MoviesState.Content -> MoviesList(
+                groups = currentState.movies,
                 listState = listState,
                 onToggleFavorite = viewModel::onClickFavorite,
                 onLoadMore = { viewModel.loadNextPage() },
-                isLoadingMore = state.isLoadingMore
+                isLoadingMore = false
+            )
+            is MoviesState.Refreshing -> MoviesList(
+                groups = currentState.movies,
+                listState = listState,
+                onToggleFavorite = viewModel::onClickFavorite,
+                onLoadMore = { viewModel.loadNextPage() },
+                isLoadingMore = false
+            )
+
+            is MoviesState.LoadingMore -> MoviesList(
+                groups = currentState.movies,
+                listState = listState,
+                onToggleFavorite = viewModel::onClickFavorite,
+                onLoadMore = { viewModel.loadNextPage() },
+                isLoadingMore = true
             )
         }
     }

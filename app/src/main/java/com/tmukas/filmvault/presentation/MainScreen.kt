@@ -3,6 +3,7 @@ package com.tmukas.filmvault.presentation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -21,6 +22,10 @@ fun MainScreen() {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("All", "Favorites")
 
+    // Remember scroll states for each tab
+    val moviesListState = rememberLazyListState()
+    val favoritesListState = rememberLazyListState()
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -37,8 +42,8 @@ fun MainScreen() {
     ) { innerPadding ->
         Box(Modifier.padding(innerPadding)) {
             when (selectedTab) {
-                0 -> MoviesScreen()
-                else -> FavoritesScreen()
+                0 -> MoviesScreen(listState = moviesListState)
+                else -> FavoritesScreen(listState = favoritesListState)
             }
         }
     }

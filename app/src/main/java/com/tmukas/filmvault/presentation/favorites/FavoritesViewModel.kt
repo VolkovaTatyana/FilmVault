@@ -19,23 +19,43 @@ class FavoritesViewModel @Inject constructor(
     private val toggleFavorite: ToggleFavoriteUseCase
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(FavoritesState())
+    private val _uiState = MutableStateFlow<FavoritesState>(FavoritesState.Loading)
     val uiState: StateFlow<FavoritesState> = _uiState.asStateFlow()
 
     init {
+        observeFavorites()
+    }
+
+    private fun observeFavorites() {
         viewModelScope.launch {
-            observeFavoritesUseCase().collect { list: List<Movie> ->
-                _uiState.value = FavoritesState(
-                    favorites = list.toImmutableList(),
-                    isEmpty = list.isEmpty()
-                )
+            observeFavoritesUseCase().collect { favorites ->
+                val immutableFavorites = favorites.toImmutableList()
+                _uiState.value = when {
+                    immutableFavorites.isEmpty() -> FavoritesState.Empty
+                    else -> FavoritesState.Content(favorites = immutableFavorites)
+                }
             }
         }
     }
 
     fun onClickFavorite(movie: Movie) {
         viewModelScope.launch {
-            toggleFavorite(movie)
+            try {
+                toggleFavorite(movie)
+            } catch (e: Exception) {
+                val currentState = _uiState.value
+                val favorites = when (currentState) {
+                    is FavoritesState.Content -> currentState.favorites
+                    is FavoritesState.Error -> currentState.favorites
+                    is FavoritesState.Loading -> listOf<Movie>().toImmutableList()
+                    is FavoritesState.Empty -> listOf<Movie>().toImmutableList()
+                }
+
+                _uiState.value = FavoritesState.Error(
+                    message = e.message ?: "Failed to toggle favorite",
+                    favorites = favorites
+                )
+            }
         }
     }
 }

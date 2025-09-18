@@ -5,7 +5,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,27 +23,64 @@ import com.tmukas.filmvault.presentation.ui.components.MovieCard
 
 @Composable
 fun FavoritesScreen(
+    listState: LazyListState = rememberLazyListState(),
     viewModel: FavoritesViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    if (state.isEmpty) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                text = "No favorites yet",
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+    when (val currentState = state) {
+        is FavoritesState.Loading -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
         }
-        return
-    }
 
-    LazyColumn(contentPadding = PaddingValues(12.dp)) {
-        items(state.favorites, key = { it.id }) { movie: Movie ->
-            MovieCard(
-                movie = movie,
-                onToggleFavorite = { viewModel.onClickFavorite(it) },
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
+        is FavoritesState.Empty -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = "No favorites yet",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        is FavoritesState.Content -> {
+            LazyColumn(
+                state = listState,
+                contentPadding = PaddingValues(12.dp)
+            ) {
+                items(currentState.favorites, key = { it.id }) { movie: Movie ->
+                    MovieCard(
+                        movie = movie,
+                        onToggleFavorite = { viewModel.onClickFavorite(it) },
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                }
+            }
+        }
+
+        is FavoritesState.Error -> {
+            if (currentState.favorites.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = currentState.message,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    contentPadding = PaddingValues(12.dp)
+                ) {
+                    items(currentState.favorites, key = { it.id }) { movie: Movie ->
+                        MovieCard(
+                            movie = movie,
+                            onToggleFavorite = { viewModel.onClickFavorite(it) },
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 }
