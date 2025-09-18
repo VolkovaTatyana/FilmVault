@@ -54,6 +54,14 @@ android {
         compose = true
         buildConfig = true
     }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                it.useJUnitPlatform()
+            }
+        }
+    }
 }
 
 dependencies {
@@ -102,16 +110,20 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     testImplementation(libs.kotlinx.coroutines.test)
 
-    // Paging 3
-    implementation(libs.paging.runtime)
-    implementation(libs.paging.compose)
-
     // Images
     implementation(libs.coil.compose)
 
     // Testing
-    testImplementation(libs.junit)
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter.api)
+    testImplementation(libs.junit.jupiter.params)
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.mockk)
+    testImplementation(libs.assertk)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.room.testing)
+
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     debugImplementation(libs.androidx.compose.ui.tooling)

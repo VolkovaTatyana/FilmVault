@@ -13,7 +13,7 @@ Android application for browsing movies and adding them to favorites.
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/FilmVault.git
+   git clone https://github.com/VolkovaTatyana/FilmVault.git
    cd FilmVault
    ```
 
@@ -42,9 +42,10 @@ Android application for browsing movies and adding them to favorites.
 - Each developer needs their own TMDB API key
 - The app won't work without a valid API key
 
-## Architecture
+## 🏛️ Architecture
 
-The project uses **Clean Architecture** with layer separation:
+The project uses **Clean Architecture** with layer separation and is designed to be **testable,
+scalable, and flexible**.
 
 ### 📁 Domain Layer (`domain/`)
 - `model/` - Domain models (Movie)
@@ -63,6 +64,72 @@ The project uses **Clean Architecture** with layer separation:
 - `favorites/` - Favorites screen
 - `ui/theme/` - App themes and styles
 
+### 📦 Module Structure
+
+**Important Note**: This application uses package-based organization instead of separate Gradle
+modules for **simplification purposes** as this is a test assignment. In a real-world production
+application, the following would be implemented as **separate Gradle modules**:
+
+- `:app` - Application module
+- `:domain` - Business logic module
+- `:data` - Data layer module
+- `:presentation` - UI layer module
+
+This modular approach provides:
+
+- Better build times through parallel compilation
+- Clearer dependency boundaries
+- Enhanced reusability
+- Improved team collaboration
+
+## 🧪 Testing
+
+The application is thoroughly tested with a focus on **testability, reliability, and maintainability
+**:
+
+### Test Types
+
+- **Unit Tests** - Domain models, use cases, and business logic
+- **Integration Tests** - Repository implementations and data flow
+- **UI Tests** - User interactions and navigation flows
+
+### Test Structure
+
+```
+src/
+├── test/               # Unit tests
+│   └── java/com/tmukas/filmvault/
+│       ├── domain/     # Domain layer tests
+│       ├── data/       # Data layer tests
+│       └── presentation/ # Presentation logic tests
+└── androidTest/        # Integration & UI tests
+    └── java/com/tmukas/filmvault/
+        ├── database/   # Room database tests
+        ├── api/        # Network layer tests
+        └── ui/         # Compose UI tests
+```
+
+### Testing Libraries
+
+- **JUnit 5** - Testing framework
+- **AssertK** - Fluent assertion library
+- **Mockk** - Mocking framework
+- **Compose Testing** - UI testing for Jetpack Compose
+- **Room Testing** - Database testing utilities
+
+### Running Tests
+
+```bash
+# Run unit tests
+./gradlew test
+
+# Run instrumented tests
+./gradlew connectedAndroidTest
+
+# Run all tests with coverage
+./gradlew testDebugUnitTestCoverageVerification
+```
+
 ## Tech Stack
 
 - **Kotlin** - main language
@@ -72,6 +139,7 @@ The project uses **Clean Architecture** with layer separation:
 - **Retrofit** - network requests
 - **Hilt** - dependency injection
 - **Coroutines & Flow** - asynchronous operations
+- **Custom Pagination** - manual page management for infinite scrolling
 
 ## API
 
@@ -83,5 +151,7 @@ movie data.
 - ✅ Browse movies list with pagination
 - ✅ Group movies by months
 - ✅ Add/remove movies from favorites
-- ✅ Offline viewing (cache first page)
+- ✅ Offline viewing (cached data)
 - ✅ Pull-to-refresh
+- ✅ Tab navigation between All movies and Favorites
+- ✅ Error handling with retry functionality
