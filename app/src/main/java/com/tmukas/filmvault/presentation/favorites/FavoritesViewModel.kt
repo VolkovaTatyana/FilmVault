@@ -6,6 +6,7 @@ import com.tmukas.filmvault.domain.model.Movie
 import com.tmukas.filmvault.domain.usecase.ObserveFavoritesUseCase
 import com.tmukas.filmvault.domain.usecase.ToggleFavoriteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,8 +48,8 @@ class FavoritesViewModel @Inject constructor(
                 val favorites = when (currentState) {
                     is FavoritesState.Content -> currentState.favorites
                     is FavoritesState.Error -> currentState.favorites
-                    is FavoritesState.Loading -> listOf<Movie>().toImmutableList()
-                    is FavoritesState.Empty -> listOf<Movie>().toImmutableList()
+                    is FavoritesState.Loading -> persistentListOf()
+                    is FavoritesState.Empty -> persistentListOf()
                 }
 
                 _uiState.value = FavoritesState.Error(

@@ -267,16 +267,12 @@ class MoviesViewModel @Inject constructor(
         }
     }
 
-    private fun List<Movie>.toUiMovieList(): ImmutableList<Pair<String, ImmutableList<Movie>>> {
+    private fun List<Movie>.toUiMovieList(): ImmutableList<Pair<String, ImmutableList<Movie>>> =
         // Movies are already sorted by release date DESC from the database query
-        val map = LinkedHashMap<String, MutableList<Movie>>()
-        for (movie in this) {
-            val monthLabel = formatReleaseDate(movie.releaseDate)
-            map.getOrPut(monthLabel) { mutableListOf() }.add(movie)
-        }
-
-        return map.entries.map { it.key to it.value.toPersistentList() }.toPersistentList()
-    }
+        this.sortedByDescending { it.releaseDate }      // enforce DESC order by date
+            .groupBy { formatReleaseDate(it.releaseDate) }
+            .map { (month, movies) -> month to movies.toPersistentList() }
+            .toPersistentList()
 
     private fun formatReleaseDate(releaseDate: String): String {
         val input = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
