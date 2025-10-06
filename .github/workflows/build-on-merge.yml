@@ -26,17 +26,16 @@ jobs:
       - name: Assemble release-like build
         run: ./gradlew assembleDebug --stacktrace
       # --- Write service account JSON from GitHub Secret to a temp file ---
-      - name: Prepare Firebase credentials
-        shell: bash
-        run: |
-          # Write the secret into a file that Gradle can read
-          echo "${{ secrets.FIREBASE_CREDENTIALS }}" > /tmp/firebase-creds.json
-
-      # --- Upload APK to Firebase App Distribution ---
+      # --- Upload APK to Firebase App Distribution (debug) ---
       - name: Upload to Firebase App Distribution (debug)
+        shell: bash
         env:
-          # Gradle plugin reads this path in app/build.gradle.kts via System.getenv
-          GOOGLE_APPLICATION_CREDENTIALS: /tmp/firebase-creds.json
-          # Nice release notes with last commit message (optional)
+          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
           GIT_MSG: ${{ github.event.head_commit.message }}
-        run: ./gradlew appDistributionUploadDebug --stacktrace
+        run: |
+          # Decode creds right here (works even with "Re-run failed jobs")
+          echo "$FIREBASE_CREDENTIALS" | base64 -d > /tmp/firebase-creds.json
+          chmod 600 /tmp/firebase-creds.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-creds.json
+
+          ./gradlew appDistributionUploadDebug --stacktrace
