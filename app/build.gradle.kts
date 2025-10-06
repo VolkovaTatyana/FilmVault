@@ -1,5 +1,6 @@
 import java.util.Properties
 import java.io.FileInputStream
+import com.google.firebase.appdistribution.gradle.firebaseAppDistribution
 
 plugins {
     alias(libs.plugins.android.application)
@@ -8,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.firebase.app.distribution)
 }
 
 // Read API key from local.properties
@@ -108,7 +110,6 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
-    testImplementation(libs.kotlinx.coroutines.test)
 
     // Images
     implementation(libs.coil.compose)
@@ -128,4 +129,19 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+// Apply Google Services only if google-services.json exists.
+// This prevents CI PR checks from failing when the file is not present.
+if (project.file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.lifecycle("google-services.json not found -> skipping Google Services plugin for CI/PR builds")
+}
+
+firebaseAppDistribution {
+    serviceCredentialsFile = System.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    groups = "qa-testers"
+    artifactType = "APK"
+    releaseNotes = System.getenv("GIT_MSG") ?: "Uploaded from CI"
 }
