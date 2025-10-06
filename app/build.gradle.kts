@@ -140,6 +140,7 @@ if (project.file("google-services.json").exists()) {
 }
 
 firebaseAppDistribution {
+    appId = "1:72096905377:android:a54024132c8965769218e0"
     serviceCredentialsFile = System.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     groups = "qa-testers"
     artifactType = "APK"
