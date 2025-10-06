@@ -25,3 +25,18 @@ jobs:
 
       - name: Assemble release-like build
         run: ./gradlew assembleDebug --stacktrace
+      # --- Write service account JSON from GitHub Secret to a temp file ---
+      - name: Prepare Firebase credentials
+        shell: bash
+        run: |
+          # Write the secret into a file that Gradle can read
+          echo "${{ secrets.FIREBASE_CREDENTIALS }}" > /tmp/firebase-creds.json
+
+      # --- Upload APK to Firebase App Distribution ---
+      - name: Upload to Firebase App Distribution (debug)
+        env:
+          # Gradle plugin reads this path in app/build.gradle.kts via System.getenv
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/firebase-creds.json
+          # Nice release notes with last commit message (optional)
+          GIT_MSG: ${{ github.event.head_commit.message }}
+        run: ./gradlew appDistributionUploadDebug --stacktrace
