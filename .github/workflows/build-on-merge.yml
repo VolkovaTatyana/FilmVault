@@ -1,0 +1,41 @@
+name: Build on Merge
+
+on:
+  push:
+    branches: [ develop, main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Gradle cache
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Assemble release-like build
+        run: ./gradlew assembleDebug --stacktrace
+      # --- Write service account JSON from GitHub Secret to a temp file ---
+      # --- Upload APK to Firebase App Distribution (debug) ---
+      - name: Upload to Firebase App Distribution (debug)
+        shell: bash
+        env:
+          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
+          GIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          # Decode creds right here (works even with "Re-run failed jobs")
+          echo "$FIREBASE_CREDENTIALS" | base64 -d > /tmp/firebase-creds.json
+          chmod 600 /tmp/firebase-creds.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-creds.json
+
+          ./gradlew appDistributionUploadDebug --stacktrace
